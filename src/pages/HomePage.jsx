@@ -10,10 +10,12 @@ export default function HomePage() {
   const { autoRefresh, refreshInterval } = useSettingsStore();
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // Fetch trending news on mount
+  // Fetch trending news only if no news exists (avoid unnecessary API calls)
   useEffect(() => {
-    fetchTrendingNews();
-  }, []);
+    if (news.length === 0) {
+      fetchTrendingNews();
+    }
+  }, []); // Only run on first mount
 
   // Auto-refresh setup
   useEffect(() => {
@@ -116,7 +118,7 @@ export default function HomePage() {
       {/* Last Refresh Time */}
       <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         마지막 업데이트: {lastRefresh.toLocaleTimeString('ko-KR')}
-        {autoRefresh && ` (${refreshInterval}분마다 자동 새로고침)`}
+        {autoRefresh && ` (${refreshInterval >= 60 ? `${refreshInterval / 60}시간` : `${refreshInterval}분`}마다 자동 새로고침)`}
       </div>
 
       {/* Filters */}

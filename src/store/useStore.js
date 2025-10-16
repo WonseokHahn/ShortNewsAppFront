@@ -77,8 +77,8 @@ export const useNewsStore = create((set, get) => ({
 export const useSettingsStore = create(
   persist(
     (set) => ({
-      autoRefresh: true,
-      refreshInterval: 5, // minutes
+      autoRefresh: false, // Disabled by default to save API costs
+      refreshInterval: 60, // minutes (1 hour)
       summaryType: 'compact', // compact or detailed
       favoriteKeywords: [],
       setAutoRefresh: (autoRefresh) => set({ autoRefresh }),

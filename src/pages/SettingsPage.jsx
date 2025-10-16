@@ -119,10 +119,10 @@ export default function SettingsPage() {
           {settings.autoRefresh && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                새로고침 간격 (분)
+                새로고침 간격
               </label>
-              <div className="flex gap-2">
-                {[1, 5, 10, 15, 30].map((minutes) => (
+              <div className="flex flex-wrap gap-2">
+                {[60, 120, 180, 240, 360].map((minutes) => (
                   <button
                     key={minutes}
                     onClick={() => {
@@ -135,10 +135,13 @@ export default function SettingsPage() {
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    {minutes}분
+                    {minutes / 60}시간
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                긴 간격으로 설정하면 API 비용이 절약됩니다
+              </p>
             </div>
           )}
         </div>
