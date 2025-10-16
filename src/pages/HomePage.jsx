@@ -1,0 +1,181 @@
+import { useState, useEffect } from 'react';
+import { RefreshCw, Loader, AlertCircle, Sparkles } from 'lucide-react';
+import NewsCard from '../components/NewsCard';
+import NewsFilter from '../components/NewsFilter';
+import { newsAPI } from '../services/api';
+import { useNewsStore, useSettingsStore } from '../store/useStore';
+
+export default function HomePage() {
+  const { news, loading, error, filters, setNews, setLoading, setError, setFilters } = useNewsStore();
+  const { autoRefresh, refreshInterval } = useSettingsStore();
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  // Fetch trending news on mount
+  useEffect(() => {
+    fetchTrendingNews();
+  }, []);
+
+  // Auto-refresh setup
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      fetchTrendingNews(true);
+    }, refreshInterval * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshInterval]);
+
+  const fetchTrendingNews = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      setError(null);
+
+      const response = await newsAPI.getTrendingNews();
+      setNews(response.data.data);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Error fetching trending news:', err);
+      setError('뉴스를 불러오는데 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async (keyword) => {
+    if (!keyword.trim()) {
+      fetchTrendingNews();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setFilters({ keyword });
+
+      const response = await newsAPI.searchNews(keyword, 20, true);
+      setNews(response.data.data);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Error searching news:', err);
+      setError('검색에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = async (newFilters) => {
+    setFilters(newFilters);
+
+    // If category filter is applied, fetch by category
+    if (newFilters.category) {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await newsAPI.getNewsByCategory(newFilters.category, 20);
+        setNews(response.data.data);
+        setLastRefresh(new Date());
+      } catch (err) {
+        console.error('Error fetching category news:', err);
+        setError('카테고리 뉴스를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Filter news by sentiment if needed (client-side)
+  const filteredNews = filters.sentiment
+    ? news.filter((item) => item.sentiment === filters.sentiment)
+    : news;
+
+  return (
+    <div className="animate-fade-in">
+      {/* Page Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Sparkles className="w-8 h-8 text-primary-600" />
+            AI 뉴스 피드
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            실시간 뉴스 요약 및 감정 분석
+          </p>
+        </div>
+        <button
+          onClick={() => fetchTrendingNews()}
+          disabled={loading}
+          className="btn-primary flex items-center gap-2"
+        >
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">새로고침</span>
+        </button>
+      </div>
+
+      {/* Last Refresh Time */}
+      <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        마지막 업데이트: {lastRefresh.toLocaleTimeString('ko-KR')}
+        {autoRefresh && ` (${refreshInterval}분마다 자동 새로고침)`}
+      </div>
+
+      {/* Filters */}
+      <NewsFilter
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onSearch={handleSearch}
+      />
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-lg flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+          <p className="text-red-800 dark:text-red-300">{error}</p>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader className="w-12 h-12 text-primary-600 animate-spin mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">뉴스를 분석하는 중...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+            GPT가 요약 및 감정 분석을 수행하고 있습니다
+          </p>
+        </div>
+      )}
+
+      {/* News Grid */}
+      {!loading && filteredNews.length > 0 && (
+        <>
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            총 <strong className="text-primary-600 dark:text-primary-400">{filteredNews.length}</strong>개의 뉴스
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredNews.map((item, index) => (
+              <NewsCard key={item.newsId || item.news_id || index} news={item} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && filteredNews.length === 0 && (
+        <div className="text-center py-20">
+          <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+            <AlertCircle className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            뉴스가 없습니다
+          </h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">
+            다른 키워드나 필터로 검색해보세요
+          </p>
+          <button onClick={() => fetchTrendingNews()} className="btn-primary">
+            트렌딩 뉴스 보기
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
