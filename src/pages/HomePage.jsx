@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Loader, AlertCircle, Sparkles } from 'lucide-react';
 import NewsCard from '../components/NewsCard';
 import NewsFilter from '../components/NewsFilter';
@@ -10,26 +10,25 @@ export default function HomePage() {
   const { autoRefresh, refreshInterval, favoriteKeywords } = useSettingsStore();
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // Fetch news based on favorite keywords or trending if none
-  useEffect(() => {
-    if (news.length === 0) {
-      fetchNews();
+  // Trending news fetch function
+  const fetchTrendingNews = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      setError(null);
+
+      const response = await newsAPI.getTrendingNews();
+      setNews(response.data.data);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Error fetching trending news:', err);
+      setError('뉴스를 불러오는데 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
     }
-  }, []); // Only run on first mount
-
-  // Auto-refresh setup
-  useEffect(() => {
-    if (!autoRefresh) return;
-
-    const interval = setInterval(() => {
-      fetchNews(true);
-    }, refreshInterval * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval, favoriteKeywords]);
+  }, [setLoading, setError, setNews]);
 
   // Main fetch function that uses favorites if available, otherwise trending
-  const fetchNews = async (silent = false) => {
+  const fetchNews = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       setError(null);
@@ -79,23 +78,26 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [favoriteKeywords, setLoading, setError, setNews, fetchTrendingNews]);
 
-  const fetchTrendingNews = async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      setError(null);
-
-      const response = await newsAPI.getTrendingNews();
-      setNews(response.data.data);
-      setLastRefresh(new Date());
-    } catch (err) {
-      console.error('Error fetching trending news:', err);
-      setError('뉴스를 불러오는데 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setLoading(false);
+  // Fetch news based on favorite keywords or trending if none
+  useEffect(() => {
+    if (news.length === 0) {
+      fetchNews();
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-refresh setup
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      fetchNews(true);
+    }, refreshInterval * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshInterval, fetchNews]);
 
   const handleSearch = async (keyword) => {
     if (!keyword.trim()) {
