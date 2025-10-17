@@ -1,4 +1,4 @@
-import { ExternalLink, Clock, TrendingUp } from 'lucide-react';
+import { ExternalLink, Clock, TrendingUp, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -62,6 +62,14 @@ export default function NewsCard({ news }) {
       <div className="flex flex-wrap items-center gap-3 text-sm">
         {/* Sentiment */}
         {news.sentiment && getSentimentBadge(news.sentiment, news.sentimentConfidence || news.confidence)}
+
+        {/* Source Keyword (if fetched via favorite keyword) */}
+        {news.sourceKeyword && (
+          <div className="flex items-center px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700">
+            <Search className="w-3.5 h-3.5 mr-1" />
+            <span className="font-medium">{news.sourceKeyword}</span>
+          </div>
+        )}
 
         {/* Date */}
         {(news.pubDate || news.pub_date) && (

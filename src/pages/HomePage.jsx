@@ -7,13 +7,13 @@ import { useNewsStore, useSettingsStore } from '../store/useStore';
 
 export default function HomePage() {
   const { news, loading, error, filters, setNews, setLoading, setError, setFilters } = useNewsStore();
-  const { autoRefresh, refreshInterval } = useSettingsStore();
+  const { autoRefresh, refreshInterval, favoriteKeywords } = useSettingsStore();
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // Fetch trending news only if no news exists (avoid unnecessary API calls)
+  // Fetch news based on favorite keywords or trending if none
   useEffect(() => {
     if (news.length === 0) {
-      fetchTrendingNews();
+      fetchNews();
     }
   }, []); // Only run on first mount
 
@@ -22,11 +22,64 @@ export default function HomePage() {
     if (!autoRefresh) return;
 
     const interval = setInterval(() => {
-      fetchTrendingNews(true);
+      fetchNews(true);
     }, refreshInterval * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval]);
+  }, [autoRefresh, refreshInterval, favoriteKeywords]);
+
+  // Main fetch function that uses favorites if available, otherwise trending
+  const fetchNews = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      setError(null);
+
+      // If user has favorite keywords, fetch news for each keyword
+      if (favoriteKeywords && favoriteKeywords.length > 0) {
+        const allNews = [];
+
+        for (const keyword of favoriteKeywords) {
+          try {
+            const response = await newsAPI.searchNews(keyword, 10, true);
+            // Add the source keyword to each news item
+            const newsWithKeyword = response.data.data.map(item => ({
+              ...item,
+              sourceKeyword: keyword
+            }));
+            allNews.push(...newsWithKeyword);
+          } catch (err) {
+            console.error(`Error fetching news for keyword "${keyword}":`, err);
+          }
+        }
+
+        // Remove duplicates based on newsId or news_id
+        const uniqueNews = allNews.filter((news, index, self) =>
+          index === self.findIndex(n =>
+            (n.newsId || n.news_id) === (news.newsId || news.news_id)
+          )
+        );
+
+        // Sort by publication date (newest first)
+        uniqueNews.sort((a, b) => {
+          const dateA = new Date(a.pubDate || a.pub_date);
+          const dateB = new Date(b.pubDate || b.pub_date);
+          return dateB - dateA;
+        });
+
+        setNews(uniqueNews);
+      } else {
+        // No favorites, fetch trending news
+        await fetchTrendingNews(silent);
+      }
+
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Error fetching news:', err);
+      setError('뉴스를 불러오는데 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchTrendingNews = async (silent = false) => {
     try {
@@ -46,7 +99,7 @@ export default function HomePage() {
 
   const handleSearch = async (keyword) => {
     if (!keyword.trim()) {
-      fetchTrendingNews();
+      fetchNews();
       return;
     }
 
@@ -56,7 +109,12 @@ export default function HomePage() {
       setFilters({ keyword });
 
       const response = await newsAPI.searchNews(keyword, 20, true);
-      setNews(response.data.data);
+      // Add the source keyword to search results
+      const newsWithKeyword = response.data.data.map(item => ({
+        ...item,
+        sourceKeyword: keyword
+      }));
+      setNews(newsWithKeyword);
       setLastRefresh(new Date());
     } catch (err) {
       console.error('Error searching news:', err);
@@ -106,7 +164,7 @@ export default function HomePage() {
           </p>
         </div>
         <button
-          onClick={() => fetchTrendingNews()}
+          onClick={() => fetchNews()}
           disabled={loading}
           className="btn-primary flex items-center gap-2"
         >
@@ -120,6 +178,16 @@ export default function HomePage() {
         마지막 업데이트: {lastRefresh.toLocaleTimeString('ko-KR')}
         {autoRefresh && ` (${refreshInterval >= 60 ? `${refreshInterval / 60}시간` : `${refreshInterval}분`}마다 자동 새로고침)`}
       </div>
+
+      {/* Favorite Keywords Info */}
+      {favoriteKeywords && favoriteKeywords.length > 0 && (
+        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/30 rounded-lg">
+          <p className="text-sm text-green-800 dark:text-green-300">
+            <strong>즐겨찾기 키워드로 뉴스 표시 중:</strong>{' '}
+            <span className="font-medium">{favoriteKeywords.join(', ')}</span>
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <NewsFilter
@@ -173,8 +241,8 @@ export default function HomePage() {
           <p className="text-gray-500 dark:text-gray-400 mb-6">
             다른 키워드나 필터로 검색해보세요
           </p>
-          <button onClick={() => fetchTrendingNews()} className="btn-primary">
-            트렌딩 뉴스 보기
+          <button onClick={() => fetchNews()} className="btn-primary">
+            뉴스 새로고침
           </button>
         </div>
       )}
