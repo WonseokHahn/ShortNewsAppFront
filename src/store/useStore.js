@@ -99,9 +99,12 @@ export const useSettingsStore = create(
       loadSettings: async () => {
         try {
           set({ isLoading: true });
+          console.log('[loadSettings] Fetching settings from backend...');
           const { settingsAPI } = await import('../services/api');
           const response = await settingsAPI.getUserSettings();
+          console.log('[loadSettings] Response:', response);
           const { data } = response.data;
+          console.log('[loadSettings] Settings data:', data);
 
           set({
             autoRefresh: data.autoRefresh,
@@ -112,9 +115,11 @@ export const useSettingsStore = create(
             isLoading: false
           });
 
+          console.log('[loadSettings] Settings loaded successfully, keywords:', data.favoriteKeywords);
           return data;
         } catch (error) {
-          console.log('Using local settings (not authenticated)');
+          console.error('[loadSettings] Failed to load settings:', error);
+          console.error('[loadSettings] Error details:', error.response?.data || error.message);
           set({ isSynced: false, isLoading: false });
           return null;
         }
@@ -123,19 +128,29 @@ export const useSettingsStore = create(
       // Save settings to backend (debounced to avoid too many requests)
       saveSettings: async () => {
         try {
+          console.log('[saveSettings] Saving settings to backend...');
           const { settingsAPI } = await import('../services/api');
           const state = get();
 
-          await settingsAPI.updateUserSettings({
+          console.log('[saveSettings] Current state:', {
             autoRefresh: state.autoRefresh,
             refreshInterval: state.refreshInterval,
             summaryType: state.summaryType,
             favoriteKeywords: state.favoriteKeywords
           });
 
+          const response = await settingsAPI.updateUserSettings({
+            autoRefresh: state.autoRefresh,
+            refreshInterval: state.refreshInterval,
+            summaryType: state.summaryType,
+            favoriteKeywords: state.favoriteKeywords
+          });
+
+          console.log('[saveSettings] Save successful:', response);
           set({ isSynced: true });
         } catch (error) {
-          console.error('Failed to save settings to backend:', error);
+          console.error('[saveSettings] Failed to save settings to backend:', error);
+          console.error('[saveSettings] Error details:', error.response?.data || error.message);
           set({ isSynced: false });
         }
       },
