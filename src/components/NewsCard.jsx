@@ -10,18 +10,34 @@ export default function NewsCard({ news }) {
 
   // Track news view for statistics (only once per card mount)
   useEffect(() => {
-    if (isAuthenticated && (news.id || news.news_id)) {
-      const newsId = news.id || news.news_id;
-      console.log('[NewsCard] Tracking view for news ID:', newsId);
-      settingsAPI.trackNewsView(newsId)
-        .then(() => {
-          console.log('[NewsCard] Successfully tracked view for news ID:', newsId);
-        })
-        .catch(err => {
-          console.error('[NewsCard] Failed to track news view:', err);
-        });
+    const newsId = news.id || news.news_id || news.newsId;
+    console.log('[NewsCard] useEffect triggered');
+    console.log('[NewsCard] - isAuthenticated:', isAuthenticated);
+    console.log('[NewsCard] - newsId:', newsId);
+    console.log('[NewsCard] - news object keys:', Object.keys(news));
+
+    if (!isAuthenticated) {
+      console.log('[NewsCard] Skipping - not authenticated');
+      return;
     }
-  }, [isAuthenticated, news.id, news.news_id]);
+
+    if (!newsId) {
+      console.error('[NewsCard] ERROR: No news ID found!');
+      console.error('[NewsCard] News object:', news);
+      return;
+    }
+
+    console.log('[NewsCard] ✓ Calling trackNewsView for ID:', newsId);
+    settingsAPI.trackNewsView(newsId)
+      .then((response) => {
+        console.log('[NewsCard] ✓ Successfully tracked news ID:', newsId);
+        console.log('[NewsCard] Response:', response.data);
+      })
+      .catch(err => {
+        console.error('[NewsCard] ✗ Failed to track news ID:', newsId);
+        console.error('[NewsCard] Error:', err.response?.data || err.message);
+      });
+  }, [isAuthenticated, news]);
 
   const getSentimentBadge = (sentiment, confidence) => {
     const badges = {
