@@ -11,10 +11,15 @@ export default function NewsCard({ news }) {
   // Track news view for statistics (only once per card mount)
   useEffect(() => {
     if (isAuthenticated && (news.id || news.news_id)) {
-      settingsAPI.trackNewsView(news.id || news.news_id).catch(err => {
-        // Silently fail - don't disrupt user experience
-        console.debug('Failed to track news view:', err);
-      });
+      const newsId = news.id || news.news_id;
+      console.log('[NewsCard] Tracking view for news ID:', newsId);
+      settingsAPI.trackNewsView(newsId)
+        .then(() => {
+          console.log('[NewsCard] Successfully tracked view for news ID:', newsId);
+        })
+        .catch(err => {
+          console.error('[NewsCard] Failed to track news view:', err);
+        });
     }
   }, [isAuthenticated, news.id, news.news_id]);
 

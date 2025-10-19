@@ -39,11 +39,14 @@ export default function HomePage() {
 
       // If user is authenticated and has favorite keywords, fetch news for each keyword
       if (activeFavoriteKeywords && activeFavoriteKeywords.length > 0) {
+        console.log('[HomePage] Fetching news for keywords:', activeFavoriteKeywords);
         const allNews = [];
 
         for (const keyword of activeFavoriteKeywords) {
           try {
+            console.log(`[HomePage] Searching for keyword: "${keyword}"`);
             const response = await newsAPI.searchNews(keyword, 10, true);
+            console.log(`[HomePage] Found ${response.data.data.length} news for keyword: "${keyword}"`);
             // Add the source keyword to each news item
             const newsWithKeyword = response.data.data.map(item => ({
               ...item,
@@ -55,12 +58,16 @@ export default function HomePage() {
           }
         }
 
+        console.log(`[HomePage] Total news before deduplication: ${allNews.length}`);
+
         // Remove duplicates based on newsId or news_id
         const uniqueNews = allNews.filter((news, index, self) =>
           index === self.findIndex(n =>
             (n.newsId || n.news_id) === (news.newsId || news.news_id)
           )
         );
+
+        console.log(`[HomePage] Total news after deduplication: ${uniqueNews.length}`);
 
         // Sort by publication date (newest first)
         uniqueNews.sort((a, b) => {
@@ -70,6 +77,7 @@ export default function HomePage() {
         });
 
         setNews(uniqueNews);
+        console.log(`[HomePage] News set to store:`, uniqueNews.length);
       } else {
         // No favorites or not authenticated, fetch trending news
         await fetchTrendingNews(silent);
@@ -84,13 +92,13 @@ export default function HomePage() {
     }
   }, [activeFavoriteKeywords, setLoading, setError, setNews, fetchTrendingNews]);
 
-  // Fetch news based on favorite keywords or trending if none
-  useEffect(() => {
-    if (news.length === 0) {
-      fetchNews();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Don't auto-fetch on initial load - let user manually refresh
+  // useEffect(() => {
+  //   if (news.length === 0) {
+  //     fetchNews();
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
 
   // Auto-refresh setup (only for authenticated users)
   useEffect(() => {
