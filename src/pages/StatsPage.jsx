@@ -13,6 +13,7 @@ export default function StatsPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -27,13 +28,29 @@ export default function StatsPage() {
         return;
       }
 
+      console.log('[StatsPage] Fetching stats for days:', days);
       const response = await settingsAPI.getUserStats({ days });
+      console.log('[StatsPage] Stats response:', response.data);
       setStats(response.data);
     } catch (error) {
-      console.error('Error fetching user stats:', error);
+      console.error('[StatsPage] Error fetching user stats:', error);
+      console.error('[StatsPage] Error details:', error.response?.data);
       setStats(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkDebugInfo = async () => {
+    try {
+      console.log('[StatsPage] Fetching debug info...');
+      const response = await settingsAPI.debugHistory();
+      console.log('[StatsPage] Debug response:', response.data);
+      setDebugInfo(response.data);
+      alert(`총 ${response.data.totalRecords}개의 기록이 있습니다. 콘솔을 확인하세요.`);
+    } catch (error) {
+      console.error('[StatsPage] Debug error:', error);
+      alert('디버그 정보를 가져오는데 실패했습니다: ' + error.message);
     }
   };
 
@@ -158,9 +175,20 @@ export default function StatsPage() {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             뉴스를 조회하면 통계가 표시됩니다
           </p>
-          <a href="/" className="btn-primary inline-block">
-            뉴스 보기
-          </a>
+          <div className="flex gap-4 justify-center">
+            <a href="/" className="btn-primary inline-block">
+              뉴스 보기
+            </a>
+            <button onClick={checkDebugInfo} className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">
+              디버그 정보 확인
+            </button>
+          </div>
+          {debugInfo && (
+            <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-left max-w-2xl mx-auto">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">디버그 정보:</h3>
+              <pre className="text-xs overflow-auto">{JSON.stringify(debugInfo, null, 2)}</pre>
+            </div>
+          )}
         </div>
       </div>
     );

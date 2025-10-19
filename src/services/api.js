@@ -96,6 +96,10 @@ export const settingsAPI = {
 
   getUserStats: (params = {}) =>
     api.get(`/settings/stats`, { params }),
+
+  // Debug: Check user history directly
+  debugHistory: () =>
+    api.get(`/settings/debug/history`),
 };
 
 // Health check
