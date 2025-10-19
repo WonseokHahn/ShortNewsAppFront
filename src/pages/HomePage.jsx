@@ -42,10 +42,13 @@ export default function HomePage() {
         console.log('[HomePage] Fetching news for keywords:', activeFavoriteKeywords);
         const allNews = [];
 
+        // Limit to 4 news per keyword for faster loading
+        const newsPerKeyword = 4;
+
         for (const keyword of activeFavoriteKeywords) {
           try {
-            console.log(`[HomePage] Searching for keyword: "${keyword}"`);
-            const response = await newsAPI.searchNews(keyword, 10, true);
+            console.log(`[HomePage] Searching for keyword: "${keyword}" (max ${newsPerKeyword} items)`);
+            const response = await newsAPI.searchNews(keyword, newsPerKeyword, true);
             console.log(`[HomePage] Found ${response.data.data.length} news for keyword: "${keyword}"`);
             // Add the source keyword to each news item
             const newsWithKeyword = response.data.data.map(item => ({
@@ -247,16 +250,19 @@ export default function HomePage() {
       {!loading && !error && filteredNews.length === 0 && (
         <div className="text-center py-20">
           <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-            <AlertCircle className="w-10 h-10 text-gray-400" />
+            <RefreshCw className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            뉴스가 없습니다
+            뉴스를 불러오려면 새로고침 버튼을 클릭하세요
           </h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">
-            다른 키워드나 필터로 검색해보세요
+            {isAuthenticated && activeFavoriteKeywords.length > 0
+              ? `즐겨찾기 키워드(${activeFavoriteKeywords.join(', ')})로 뉴스를 검색합니다`
+              : '최신 트렌딩 뉴스를 불러옵니다'}
           </p>
-          <button onClick={() => fetchNews()} className="btn-primary">
-            뉴스 새로고침
+          <button onClick={() => fetchNews()} className="btn-primary flex items-center gap-2 mx-auto">
+            <RefreshCw className="w-5 h-5" />
+            뉴스 불러오기
           </button>
         </div>
       )}
