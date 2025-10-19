@@ -39,7 +39,6 @@ export const useAuthStore = create(
         set({ user: null, token: null, isAuthenticated: false });
 
         // Reset settings store to default values
-        // This will be persisted to localStorage automatically
         useSettingsStore.setState({
           autoRefresh: false,
           refreshInterval: 60,
@@ -47,6 +46,13 @@ export const useAuthStore = create(
           favoriteKeywords: [],
           isSynced: false,
           isLoading: false
+        });
+
+        // Clear news store on logout
+        useNewsStore.setState({
+          news: [],
+          loading: false,
+          error: null
         });
       },
       updateUser: (user) => set({ user }),

@@ -10,11 +10,13 @@ export default function NewsCard({ news }) {
 
   // Track news view for statistics (only once per card mount)
   useEffect(() => {
-    const newsId = news.id || news.news_id || news.newsId;
+    // IMPORTANT: Use news.id (INTEGER primary key), NOT news.news_id (VARCHAR external ID)
+    // Because sentiment_analysis and news_keywords reference news.id
+    const newsId = news.id;
     console.log('[NewsCard] useEffect triggered');
     console.log('[NewsCard] - isAuthenticated:', isAuthenticated);
-    console.log('[NewsCard] - newsId:', newsId);
-    console.log('[NewsCard] - news object keys:', Object.keys(news));
+    console.log('[NewsCard] - news.id (INTEGER):', news.id);
+    console.log('[NewsCard] - news.news_id (VARCHAR):', news.news_id);
 
     if (!isAuthenticated) {
       console.log('[NewsCard] Skipping - not authenticated');
@@ -22,22 +24,22 @@ export default function NewsCard({ news }) {
     }
 
     if (!newsId) {
-      console.error('[NewsCard] ERROR: No news ID found!');
+      console.error('[NewsCard] ERROR: No news.id (INTEGER primary key) found!');
       console.error('[NewsCard] News object:', news);
       return;
     }
 
-    console.log('[NewsCard] ✓ Calling trackNewsView for ID:', newsId);
+    console.log('[NewsCard] ✓ Calling trackNewsView for INTEGER ID:', newsId);
     settingsAPI.trackNewsView(newsId)
       .then((response) => {
-        console.log('[NewsCard] ✓ Successfully tracked news ID:', newsId);
+        console.log('[NewsCard] ✓ Successfully tracked news INTEGER ID:', newsId);
         console.log('[NewsCard] Response:', response.data);
       })
       .catch(err => {
-        console.error('[NewsCard] ✗ Failed to track news ID:', newsId);
+        console.error('[NewsCard] ✗ Failed to track news INTEGER ID:', newsId);
         console.error('[NewsCard] Error:', err.response?.data || err.message);
       });
-  }, [isAuthenticated, news]);
+  }, [isAuthenticated, news.id]);
 
   const getSentimentBadge = (sentiment, confidence) => {
     const badges = {
