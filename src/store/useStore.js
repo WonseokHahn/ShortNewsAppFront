@@ -57,32 +57,41 @@ export const useAuthStore = create(
   )
 );
 
-// News store
-export const useNewsStore = create((set, get) => ({
-  news: [],
-  loading: false,
-  error: null,
-  filters: {
-    category: null,
-    sentiment: null,
-    keyword: '',
-    sortBy: 'pub_date',
-    order: 'DESC',
-  },
-  setNews: (news) => set({ news }),
-  setLoading: (loading) => set({ loading }),
-  setError: (error) => set({ error }),
-  setFilters: (filters) => set({ filters: { ...get().filters, ...filters } }),
-  resetFilters: () => set({
-    filters: {
-      category: null,
-      sentiment: null,
-      keyword: '',
-      sortBy: 'pub_date',
-      order: 'DESC',
-    },
-  }),
-}));
+// News store with persistence to keep news when navigating between pages
+export const useNewsStore = create(
+  persist(
+    (set, get) => ({
+      news: [],
+      loading: false,
+      error: null,
+      filters: {
+        category: null,
+        sentiment: null,
+        keyword: '',
+        sortBy: 'pub_date',
+        order: 'DESC',
+      },
+      setNews: (news) => set({ news }),
+      setLoading: (loading) => set({ loading }),
+      setError: (error) => set({ error }),
+      setFilters: (filters) => set({ filters: { ...get().filters, ...filters } }),
+      resetFilters: () => set({
+        filters: {
+          category: null,
+          sentiment: null,
+          keyword: '',
+          sortBy: 'pub_date',
+          order: 'DESC',
+        },
+      }),
+    }),
+    {
+      name: 'news-storage',
+      // Only persist news array to keep localStorage size manageable
+      partialize: (state) => ({ news: state.news }),
+    }
+  )
+);
 
 // Settings store - Syncs with backend for authenticated users
 export const useSettingsStore = create(
