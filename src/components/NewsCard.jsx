@@ -1,8 +1,23 @@
+import { useEffect } from 'react';
 import { ExternalLink, Clock, TrendingUp, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { settingsAPI } from '../services/api';
+import { useAuthStore } from '../store/useStore';
 
 export default function NewsCard({ news }) {
+  const { isAuthenticated } = useAuthStore();
+
+  // Track news view for statistics (only once per card mount)
+  useEffect(() => {
+    if (isAuthenticated && (news.id || news.news_id)) {
+      settingsAPI.trackNewsView(news.id || news.news_id).catch(err => {
+        // Silently fail - don't disrupt user experience
+        console.debug('Failed to track news view:', err);
+      });
+    }
+  }, [isAuthenticated, news.id, news.news_id]);
+
   const getSentimentBadge = (sentiment, confidence) => {
     const badges = {
       positive: 'badge-positive',

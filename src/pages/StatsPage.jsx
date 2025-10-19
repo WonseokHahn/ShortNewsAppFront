@@ -1,53 +1,55 @@
 import { useState, useEffect } from 'react';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
-import { TrendingUp, Activity, Hash, Loader } from 'lucide-react';
-import { newsAPI } from '../services/api';
+import { TrendingUp, Activity, Hash, Loader, User } from 'lucide-react';
+import { settingsAPI } from '../services/api';
+import { useAuthStore } from '../store/useStore';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function StatsPage() {
-  const [sentimentStats, setSentimentStats] = useState(null);
-  const [keywordStats, setKeywordStats] = useState(null);
+  const { isAuthenticated } = useAuthStore();
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
 
   useEffect(() => {
     fetchStats();
-  }, [days]);
+  }, [days, isAuthenticated]);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
 
-      const [sentimentRes, keywordRes] = await Promise.all([
-        newsAPI.getSentimentStats({ days }),
-        newsAPI.getKeywordStats({ days, limit: 10 }),
-      ]);
+      if (!isAuthenticated) {
+        setStats(null);
+        return;
+      }
 
-      setSentimentStats(sentimentRes.data);
-      setKeywordStats(keywordRes.data);
+      const response = await settingsAPI.getUserStats({ days });
+      setStats(response.data);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching user stats:', error);
+      setStats(null);
     } finally {
       setLoading(false);
     }
   };
 
   // Sentiment Pie Chart Data
-  const sentimentChartData = sentimentStats ? {
-    labels: sentimentStats.data.map((item) => {
+  const sentimentChartData = stats?.sentiment?.length > 0 ? {
+    labels: stats.sentiment.map((item) => {
       const labels = { positive: '긍정', negative: '부정', neutral: '중립' };
       return labels[item.sentiment] || item.sentiment;
     }),
     datasets: [
       {
-        data: sentimentStats.data.map((item) => item.count),
+        data: stats.sentiment.map((item) => item.count),
         backgroundColor: [
-          'rgba(34, 197, 94, 0.8)',  // Green for positive
-          'rgba(239, 68, 68, 0.8)',  // Red for negative
-          'rgba(156, 163, 175, 0.8)', // Gray for neutral
+          'rgba(34, 197, 94, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(156, 163, 175, 0.8)',
         ],
         borderColor: [
           'rgba(34, 197, 94, 1)',
@@ -60,12 +62,12 @@ export default function StatsPage() {
   } : null;
 
   // Keyword Bar Chart Data
-  const keywordChartData = keywordStats ? {
-    labels: keywordStats.data.map((item) => item.keyword),
+  const keywordChartData = stats?.keywords?.length > 0 ? {
+    labels: stats.keywords.map((item) => item.keyword),
     datasets: [
       {
-        label: '뉴스 빈도',
-        data: keywordStats.data.map((item) => item.frequency),
+        label: '조회 빈도',
+        data: stats.keywords.map((item) => item.frequency),
         backgroundColor: 'rgba(14, 165, 233, 0.8)',
         borderColor: 'rgba(14, 165, 233, 1)',
         borderWidth: 2,
@@ -126,16 +128,54 @@ export default function StatsPage() {
     );
   }
 
+  if (!isAuthenticated) {
+    return (
+      <div className="animate-fade-in">
+        <div className="card text-center py-20">
+          <User className="w-20 h-20 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            로그인이 필요합니다
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            개인화된 통계를 보려면 로그인해주세요
+          </p>
+          <a href="/login" className="btn-primary inline-block">
+            로그인하기
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats || stats.total === 0) {
+    return (
+      <div className="animate-fade-in">
+        <div className="card text-center py-20">
+          <Activity className="w-20 h-20 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            아직 데이터가 없습니다
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            뉴스를 조회하면 통계가 표시됩니다
+          </p>
+          <a href="/" className="btn-primary inline-block">
+            뉴스 보기
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Activity className="w-8 h-8 text-primary-600" />
-          뉴스 통계 대시보드
+          내 뉴스 통계 대시보드
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          감정 분석 및 키워드 트렌드
+          내가 본 뉴스 기반 감정 분석 및 키워드 트렌드
         </p>
       </div>
 
@@ -162,17 +202,17 @@ export default function StatsPage() {
       </div>
 
       {/* Summary Cards */}
-      {sentimentStats && (
+      {stats?.sentiment && stats.sentiment.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="card bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-700 dark:text-green-400 font-medium">긍정 뉴스</p>
                 <p className="text-3xl font-bold text-green-800 dark:text-green-300 mt-1">
-                  {sentimentStats.data.find((s) => s.sentiment === 'positive')?.count || 0}
+                  {stats.sentiment.find((s) => s.sentiment === 'positive')?.count || 0}
                 </p>
                 <p className="text-sm text-green-600 dark:text-green-500 mt-1">
-                  {sentimentStats.data.find((s) => s.sentiment === 'positive')?.percentage || 0}%
+                  {stats.sentiment.find((s) => s.sentiment === 'positive')?.percentage || 0}%
                 </p>
               </div>
               <TrendingUp className="w-12 h-12 text-green-600 dark:text-green-400" />
@@ -184,10 +224,10 @@ export default function StatsPage() {
               <div>
                 <p className="text-sm text-red-700 dark:text-red-400 font-medium">부정 뉴스</p>
                 <p className="text-3xl font-bold text-red-800 dark:text-red-300 mt-1">
-                  {sentimentStats.data.find((s) => s.sentiment === 'negative')?.count || 0}
+                  {stats.sentiment.find((s) => s.sentiment === 'negative')?.count || 0}
                 </p>
                 <p className="text-sm text-red-600 dark:text-red-500 mt-1">
-                  {sentimentStats.data.find((s) => s.sentiment === 'negative')?.percentage || 0}%
+                  {stats.sentiment.find((s) => s.sentiment === 'negative')?.percentage || 0}%
                 </p>
               </div>
               <Activity className="w-12 h-12 text-red-600 dark:text-red-400" />
@@ -199,10 +239,10 @@ export default function StatsPage() {
               <div>
                 <p className="text-sm text-gray-700 dark:text-gray-400 font-medium">중립 뉴스</p>
                 <p className="text-3xl font-bold text-gray-800 dark:text-gray-300 mt-1">
-                  {sentimentStats.data.find((s) => s.sentiment === 'neutral')?.count || 0}
+                  {stats.sentiment.find((s) => s.sentiment === 'neutral')?.count || 0}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-500 mt-1">
-                  {sentimentStats.data.find((s) => s.sentiment === 'neutral')?.percentage || 0}%
+                  {stats.sentiment.find((s) => s.sentiment === 'neutral')?.percentage || 0}%
                 </p>
               </div>
               <Hash className="w-12 h-12 text-gray-600 dark:text-gray-400" />
@@ -223,7 +263,7 @@ export default function StatsPage() {
               <Pie data={sentimentChartData} options={chartOptions} />
             </div>
             <div className="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center">
-              총 {sentimentStats?.total || 0}개의 뉴스 분석
+              총 {stats?.total || 0}개의 뉴스 조회
             </div>
           </div>
         )}
@@ -245,7 +285,7 @@ export default function StatsPage() {
       </div>
 
       {/* Keyword List */}
-      {keywordStats && keywordStats.data.length > 0 && (
+      {stats?.keywords && stats.keywords.length > 0 && (
         <div className="card mt-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
             상세 키워드 통계
@@ -256,35 +296,16 @@ export default function StatsPage() {
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">순위</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">키워드</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">빈도</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">감정</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">조회 빈도</th>
                 </tr>
               </thead>
               <tbody>
-                {keywordStats.data.map((item, index) => (
+                {stats.keywords.map((item, index) => (
                   <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">#{index + 1}</td>
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{item.keyword}</td>
                     <td className="py-3 px-4 text-right text-primary-600 dark:text-primary-400 font-semibold">
-                      {item.frequency}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-1">
-                        {item.sentiments?.map((s, i) => (
-                          <span
-                            key={i}
-                            className={`px-2 py-1 text-xs rounded ${
-                              s === 'positive'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : s === 'negative'
-                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                            }`}
-                          >
-                            {s === 'positive' ? '긍정' : s === 'negative' ? '부정' : '중립'}
-                          </span>
-                        ))}
-                      </div>
+                      {item.frequency}회
                     </td>
                   </tr>
                 ))}

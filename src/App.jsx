@@ -6,15 +6,27 @@ import StatsPage from './pages/StatsPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import { useThemeStore } from './store/useStore';
+import { useThemeStore, useAuthStore, useSettingsStore } from './store/useStore';
 
 function App() {
   const { theme } = useThemeStore();
+  const { isAuthenticated } = useAuthStore();
+  const settings = useSettingsStore();
 
   useEffect(() => {
     // Ensure theme class is applied on mount
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  // Load user settings from backend when user logs in
+  useEffect(() => {
+    if (isAuthenticated) {
+      settings.loadSettings();
+    } else {
+      // Clear settings when user logs out
+      settings.clearSettings();
+    }
+  }, [isAuthenticated]);
 
   return (
     <Routes>

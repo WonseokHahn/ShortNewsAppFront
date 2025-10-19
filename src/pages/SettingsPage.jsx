@@ -1,68 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, Plus, X } from 'lucide-react';
+import { Settings as SettingsIcon, Plus, X, Cloud, HardDrive } from 'lucide-react';
 import { useSettingsStore, useAuthStore } from '../store/useStore';
-import { authAPI } from '../services/api';
 
 export default function SettingsPage() {
   const settings = useSettingsStore();
   const { isAuthenticated } = useAuthStore();
   const [savedMessage, setSavedMessage] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
-  const [serverFavorites, setServerFavorites] = useState([]);
 
+  // Load settings from backend when authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      fetchFavorites();
+      settings.loadSettings();
     }
   }, [isAuthenticated]);
-
-  const fetchFavorites = async () => {
-    try {
-      const response = await authAPI.getFavorites();
-      setServerFavorites(response.data.favorites);
-    } catch (error) {
-      console.error('Error fetching favorites:', error);
-    }
-  };
 
   const handleSave = () => {
     setSavedMessage('설정이 저장되었습니다!');
     setTimeout(() => setSavedMessage(''), 3000);
   };
 
-  const handleAddKeyword = async () => {
+  const handleAddKeyword = () => {
     if (!newKeyword.trim()) return;
-
-    if (isAuthenticated) {
-      try {
-        await authAPI.addFavorite(newKeyword.trim());
-        await fetchFavorites();
-      } catch (error) {
-        console.error('Error adding favorite:', error);
-      }
-    } else {
-      settings.addFavoriteKeyword(newKeyword.trim());
-    }
-
+    settings.addFavoriteKeyword(newKeyword.trim());
     setNewKeyword('');
+    handleSave();
   };
 
-  const handleRemoveKeyword = async (keyword, id = null) => {
-    if (isAuthenticated && id) {
-      try {
-        await authAPI.removeFavorite(id);
-        await fetchFavorites();
-      } catch (error) {
-        console.error('Error removing favorite:', error);
-      }
-    } else {
-      settings.removeFavoriteKeyword(keyword);
-    }
+  const handleRemoveKeyword = (keyword) => {
+    settings.removeFavoriteKeyword(keyword);
+    handleSave();
   };
 
-  const favoritesList = isAuthenticated
-    ? serverFavorites
-    : settings.favoriteKeywords.map((k) => ({ keyword: k }));
+  const favoritesList = settings.favoriteKeywords.map((k) => ({ keyword: k }));
 
   return (
     <div className="animate-fade-in max-w-4xl">
@@ -72,9 +42,26 @@ export default function SettingsPage() {
           <SettingsIcon className="w-8 h-8 text-primary-600" />
           설정
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          앱 맞춤 설정 및 즐겨찾기 관리
-        </p>
+        <div className="flex items-center gap-2 mt-2">
+          <p className="text-gray-600 dark:text-gray-400">
+            앱 맞춤 설정 및 즐겨찾기 관리
+          </p>
+          {isAuthenticated && (
+            <div className="flex items-center gap-1 text-xs">
+              {settings.isSynced ? (
+                <>
+                  <Cloud className="w-4 h-4 text-green-500" />
+                  <span className="text-green-600 dark:text-green-400">클라우드 동기화됨</span>
+                </>
+              ) : (
+                <>
+                  <HardDrive className="w-4 h-4 text-orange-500" />
+                  <span className="text-orange-600 dark:text-orange-400">로컬 저장</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Success Message */}
@@ -217,7 +204,7 @@ export default function SettingsPage() {
           즐겨찾기 키워드
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          자주 검색하는 키워드를 저장하세요
+          자주 검색하는 키워드를 저장하세요. 홈페이지에서 이 키워드들로 자동 검색됩니다.
           {!isAuthenticated && ' (로그인하면 클라우드에 저장됩니다)'}
         </p>
 
@@ -241,12 +228,12 @@ export default function SettingsPage() {
           <div className="flex flex-wrap gap-2">
             {favoritesList.map((item, index) => (
               <div
-                key={item.id || index}
+                key={index}
                 className="flex items-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-lg"
               >
                 <span>{item.keyword}</span>
                 <button
-                  onClick={() => handleRemoveKeyword(item.keyword, item.id)}
+                  onClick={() => handleRemoveKeyword(item.keyword)}
                   className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200"
                 >
                   <X className="w-4 h-4" />

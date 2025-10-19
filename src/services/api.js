@@ -78,6 +78,21 @@ export const authAPI = {
     api.delete(`/auth/favorites/${id}`),
 };
 
+// Settings API
+export const settingsAPI = {
+  getUserSettings: () =>
+    api.get(`/settings`),
+
+  updateUserSettings: (settings) =>
+    api.post(`/settings`, settings),
+
+  trackNewsView: (newsId) =>
+    api.post(`/settings/track-view`, { newsId }),
+
+  getUserStats: (params = {}) =>
+    api.get(`/settings/stats`, { params }),
+};
+
 // Health check
 export const healthCheck = () =>
   api.get('/health', { baseURL: API_BASE_URL.replace('/api', '') });

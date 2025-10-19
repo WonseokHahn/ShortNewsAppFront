@@ -73,26 +73,106 @@ export const useNewsStore = create((set, get) => ({
   }),
 }));
 
-// Settings store
+// Settings store - Syncs with backend for authenticated users
 export const useSettingsStore = create(
   persist(
-    (set) => ({
-      autoRefresh: false, // Disabled by default to save API costs
-      refreshInterval: 60, // minutes (1 hour)
-      summaryType: 'compact', // compact or detailed
+    (set, get) => ({
+      autoRefresh: false,
+      refreshInterval: 60,
+      summaryType: 'compact',
       favoriteKeywords: [],
-      setAutoRefresh: (autoRefresh) => set({ autoRefresh }),
-      setRefreshInterval: (refreshInterval) => set({ refreshInterval }),
-      setSummaryType: (summaryType) => set({ summaryType }),
-      addFavoriteKeyword: (keyword) =>
+      isSynced: false,
+      isLoading: false,
+
+      // Load settings from backend
+      loadSettings: async () => {
+        try {
+          set({ isLoading: true });
+          const { settingsAPI } = await import('../services/api');
+          const response = await settingsAPI.getUserSettings();
+          const { data } = response.data;
+
+          set({
+            autoRefresh: data.autoRefresh,
+            refreshInterval: data.refreshInterval,
+            summaryType: data.summaryType,
+            favoriteKeywords: data.favoriteKeywords,
+            isSynced: true,
+            isLoading: false
+          });
+
+          return data;
+        } catch (error) {
+          console.log('Using local settings (not authenticated)');
+          set({ isSynced: false, isLoading: false });
+          return null;
+        }
+      },
+
+      // Save settings to backend (debounced to avoid too many requests)
+      saveSettings: async () => {
+        try {
+          const { settingsAPI } = await import('../services/api');
+          const state = get();
+
+          await settingsAPI.updateUserSettings({
+            autoRefresh: state.autoRefresh,
+            refreshInterval: state.refreshInterval,
+            summaryType: state.summaryType,
+            favoriteKeywords: state.favoriteKeywords
+          });
+
+          set({ isSynced: true });
+        } catch (error) {
+          console.error('Failed to save settings to backend:', error);
+          set({ isSynced: false });
+        }
+      },
+
+      setAutoRefresh: (autoRefresh) => {
+        set({ autoRefresh });
+        get().saveSettings();
+      },
+
+      setRefreshInterval: (refreshInterval) => {
+        set({ refreshInterval });
+        get().saveSettings();
+      },
+
+      setSummaryType: (summaryType) => {
+        set({ summaryType });
+        get().saveSettings();
+      },
+
+      addFavoriteKeyword: (keyword) => {
         set((state) => ({
           favoriteKeywords: [...state.favoriteKeywords, keyword],
-        })),
-      removeFavoriteKeyword: (keyword) =>
+        }));
+        get().saveSettings();
+      },
+
+      removeFavoriteKeyword: (keyword) => {
         set((state) => ({
           favoriteKeywords: state.favoriteKeywords.filter((k) => k !== keyword),
-        })),
-      setFavoriteKeywords: (keywords) => set({ favoriteKeywords: keywords }),
+        }));
+        get().saveSettings();
+      },
+
+      setFavoriteKeywords: (keywords) => {
+        set({ favoriteKeywords: keywords });
+        get().saveSettings();
+      },
+
+      // Clear settings on logout
+      clearSettings: () => {
+        set({
+          autoRefresh: false,
+          refreshInterval: 60,
+          summaryType: 'compact',
+          favoriteKeywords: [],
+          isSynced: false
+        });
+      }
     }),
     {
       name: 'settings-storage',
