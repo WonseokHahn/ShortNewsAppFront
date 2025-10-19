@@ -22,10 +22,9 @@ function App() {
   useEffect(() => {
     if (isAuthenticated) {
       settings.loadSettings();
-    } else {
-      // Clear settings when user logs out
-      settings.clearSettings();
     }
+    // Note: We don't clear settings on logout to preserve local preferences
+    // Settings will be reloaded from backend when user logs in again
   }, [isAuthenticated]);
 
   return (

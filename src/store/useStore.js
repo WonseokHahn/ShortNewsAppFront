@@ -36,6 +36,8 @@ export const useAuthStore = create(
       },
       logout: () => {
         localStorage.removeItem('token');
+        // Clear settings storage when logging out
+        localStorage.removeItem('settings-storage');
         set({ user: null, token: null, isAuthenticated: false });
       },
       updateUser: (user) => set({ user }),
@@ -161,17 +163,6 @@ export const useSettingsStore = create(
       setFavoriteKeywords: (keywords) => {
         set({ favoriteKeywords: keywords });
         get().saveSettings();
-      },
-
-      // Clear settings on logout
-      clearSettings: () => {
-        set({
-          autoRefresh: false,
-          refreshInterval: 60,
-          summaryType: 'compact',
-          favoriteKeywords: [],
-          isSynced: false
-        });
       }
     }),
     {
