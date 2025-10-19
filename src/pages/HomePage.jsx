@@ -3,12 +3,16 @@ import { RefreshCw, Loader, AlertCircle, Sparkles } from 'lucide-react';
 import NewsCard from '../components/NewsCard';
 import NewsFilter from '../components/NewsFilter';
 import { newsAPI } from '../services/api';
-import { useNewsStore, useSettingsStore } from '../store/useStore';
+import { useNewsStore, useSettingsStore, useAuthStore } from '../store/useStore';
 
 export default function HomePage() {
   const { news, loading, error, filters, setNews, setLoading, setError, setFilters } = useNewsStore();
   const { autoRefresh, refreshInterval, favoriteKeywords } = useSettingsStore();
+  const { isAuthenticated } = useAuthStore();
   const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  // For non-authenticated users, ignore favorite keywords
+  const activeFavoriteKeywords = isAuthenticated ? favoriteKeywords : [];
 
   // Trending news fetch function
   const fetchTrendingNews = useCallback(async (silent = false) => {
@@ -33,11 +37,11 @@ export default function HomePage() {
       if (!silent) setLoading(true);
       setError(null);
 
-      // If user has favorite keywords, fetch news for each keyword
-      if (favoriteKeywords && favoriteKeywords.length > 0) {
+      // If user is authenticated and has favorite keywords, fetch news for each keyword
+      if (activeFavoriteKeywords && activeFavoriteKeywords.length > 0) {
         const allNews = [];
 
-        for (const keyword of favoriteKeywords) {
+        for (const keyword of activeFavoriteKeywords) {
           try {
             const response = await newsAPI.searchNews(keyword, 10, true);
             // Add the source keyword to each news item
@@ -67,7 +71,7 @@ export default function HomePage() {
 
         setNews(uniqueNews);
       } else {
-        // No favorites, fetch trending news
+        // No favorites or not authenticated, fetch trending news
         await fetchTrendingNews(silent);
       }
 
@@ -78,7 +82,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [favoriteKeywords, setLoading, setError, setNews, fetchTrendingNews]);
+  }, [activeFavoriteKeywords, setLoading, setError, setNews, fetchTrendingNews]);
 
   // Fetch news based on favorite keywords or trending if none
   useEffect(() => {
@@ -88,16 +92,16 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-refresh setup
+  // Auto-refresh setup (only for authenticated users)
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (!isAuthenticated || !autoRefresh) return;
 
     const interval = setInterval(() => {
       fetchNews(true);
     }, refreshInterval * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval, fetchNews]);
+  }, [isAuthenticated, autoRefresh, refreshInterval, fetchNews]);
 
   const handleSearch = async (keyword) => {
     if (!keyword.trim()) {
@@ -178,15 +182,15 @@ export default function HomePage() {
       {/* Last Refresh Time */}
       <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         마지막 업데이트: {lastRefresh.toLocaleTimeString('ko-KR')}
-        {autoRefresh && ` (${refreshInterval >= 60 ? `${refreshInterval / 60}시간` : `${refreshInterval}분`}마다 자동 새로고침)`}
+        {isAuthenticated && autoRefresh && ` (${refreshInterval >= 60 ? `${refreshInterval / 60}시간` : `${refreshInterval}분`}마다 자동 새로고침)`}
       </div>
 
       {/* Favorite Keywords Info */}
-      {favoriteKeywords && favoriteKeywords.length > 0 && (
+      {isAuthenticated && activeFavoriteKeywords && activeFavoriteKeywords.length > 0 && (
         <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/30 rounded-lg">
           <p className="text-sm text-green-800 dark:text-green-300">
             <strong>즐겨찾기 키워드로 뉴스 표시 중:</strong>{' '}
-            <span className="font-medium">{favoriteKeywords.join(', ')}</span>
+            <span className="font-medium">{activeFavoriteKeywords.join(', ')}</span>
           </p>
         </div>
       )}
