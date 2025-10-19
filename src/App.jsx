@@ -21,11 +21,14 @@ function App() {
   // Load user settings from backend when user logs in
   useEffect(() => {
     if (isAuthenticated) {
-      settings.loadSettings();
+      console.log('[App.jsx] User logged in, loading settings from DB...');
+      settings.loadSettings().then((data) => {
+        console.log('[App.jsx] Settings loaded:', data);
+      });
+    } else {
+      console.log('[App.jsx] User logged out, using default settings');
     }
-    // Note: We don't clear settings on logout to preserve local preferences
-    // Settings will be reloaded from backend when user logs in again
-  }, [isAuthenticated]);
+  }, [isAuthenticated, settings.loadSettings]);
 
   return (
     <Routes>

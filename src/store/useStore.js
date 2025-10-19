@@ -36,9 +36,18 @@ export const useAuthStore = create(
       },
       logout: () => {
         localStorage.removeItem('token');
-        // Clear settings storage when logging out
-        localStorage.removeItem('settings-storage');
         set({ user: null, token: null, isAuthenticated: false });
+
+        // Reset settings store to default values
+        // This will be persisted to localStorage automatically
+        useSettingsStore.setState({
+          autoRefresh: false,
+          refreshInterval: 60,
+          summaryType: 'compact',
+          favoriteKeywords: [],
+          isSynced: false,
+          isLoading: false
+        });
       },
       updateUser: (user) => set({ user }),
     }),
